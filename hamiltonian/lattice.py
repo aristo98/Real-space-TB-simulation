@@ -467,9 +467,11 @@ class Lattice:
 
         for u, v in sorted_edges:
             # Find shortest path from u to v excluding the direct edge (u,v)
-            path = bfs_shortest_path_excluding_edge(u, v, adj, max_cycle_length - 1)
-
-            if path:
+            paths = bfs_shortest_path_excluding_edge(u, v, adj, max_cycle_length - 1)
+            if not paths:
+                continue
+            for path in paths:
+                # if path:
                 # Cycle found: u -> ... -> v -> u
                 # Path includes u and v. Cycle length is len(path).
                 if len(path) < 3:
@@ -584,3 +586,26 @@ class Lattice:
             )
 
         return plaquettes
+
+
+# D = 2
+# square_Rs = np.array([[1.0, 0.0], [0.0, 1.0]])
+# square_taus = np.array([[0.0, 0.0]])
+# square_size = (5, 5)
+# square_lattice = Lattice(D, square_Rs, square_taus, square_size, periodic=False)
+# square_plaquettes = square_lattice.find_plaquettes([1.0])
+
+# graphene_Rs = array([[1.0, 0.0], [1 / 2, np.sqrt(3) / 2]])
+# graphene_taus = array([[0.0, 0.0], [1 / 2, np.sqrt(3) / 6]])
+# graphene_size = (5, 5)
+# graphene_lattice = Lattice(D, graphene_Rs, graphene_taus, graphene_size, periodic=False)
+# graphene_plaquettes = graphene_lattice.find_plaquettes()
+
+
+# D = 3
+# square_Rs = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+# square_taus = np.array([[0.0, 0.0, 0.0]])
+# square_size = (3, 3, 3)
+# square_lattice = Lattice(D, square_Rs, square_taus, square_size, periodic=False)
+# square_plaquettes = square_lattice.find_plaquettes([1.0])
+# print("Stop!")

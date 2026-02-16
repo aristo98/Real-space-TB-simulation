@@ -1,5 +1,5 @@
 from math import isclose, sqrt
-from collections import deque
+from collections import deque, defaultdict
 from numpy import array
 import numpy as np
 
@@ -109,36 +109,105 @@ def canonical_cycle_tuple(nodes):
     return min(seqs)
 
 
-def bfs_shortest_path_excluding_edge(u, v, adjacency, max_len):
+def bfs_shortest_path_excluding_edge(u, v, adjacency, max_len=None, max_paths=1000):
     """
-    BFS shortest-path helper (returns path list [u,...,v]) with edge (u,v) removed temporarily
+    Return a list of all shortest simple paths from u to v *excluding* the direct edge (u,v).
+    Each path is a list of nodes [u, ..., v].
+
+    - adjacency: dict(node)->iterable_of_neighbors (your adjacency dict-of-sets)
+    - max_len: optional maximum allowed path length (number of nodes in path). If provided,
+               any shortest path longer than max_len is discarded (and an empty list returned).
+    - max_paths: safety cap on how many paths to return (prevent combinatorial explosion).
     """
-    # adjacency is dict of sets; make local shallow copy of neighbors for traversal but do not mutate original
-    # We'll treat the edge (u,v) as forbidden.
+    # Standard BFS to get distances and parents for shortest paths
     q = deque([u])
-    prev = {u: None}
+    dist = {u: 0}
+    parents = defaultdict(list)  # node -> list of predecessors on shortest paths
+    found_dist = None
+
     while q:
         cur = q.popleft()
-        # early pruning
-        if (
-            prev[cur] is not None
-            and (max_len is not None)
-            and (len(prev) > max_len + 1)
-        ):
-            # rough bound; not precise but prevents infinite loops; actual checking done when reconstructing
-            pass
+
+        # If we've already found v at distance found_dist, don't explore nodes at greater distance
+        if found_dist is not None and dist[cur] > found_dist:
+            break
+
         for nb in adjacency[cur]:
+            # forbid the direct edge in either direction
             if (cur == u and nb == v) or (cur == v and nb == u):
-                # skip the forbidden direct edge
                 continue
-            if nb not in prev:
-                prev[nb] = cur
-                if nb == v:
-                    # reconstruct path
-                    path = [v]
-                    while prev[path[-1]] is not None:
-                        path.append(prev[path[-1]])
-                    path.reverse()
-                    return path  # [u,...,v]
+
+            if nb not in dist:
+                dist[nb] = dist[cur] + 1
+                parents[nb].append(cur)
                 q.append(nb)
-    return None
+            else:
+                # another shortest predecessor
+                if dist[nb] == dist[cur] + 1:
+                    parents[nb].append(cur)
+
+        if cur == v:
+            found_dist = dist[cur]
+            # if shortest distance is already longer than allowed max_len (count nodes)
+            if (max_len is not None) and (found_dist + 1 > max_len):
+                return []
+
+    # no path found
+    if v not in dist:
+        return []
+
+    # enforce max_len (path length = dist[v] + 1)
+    path_len = dist[v] + 1
+    if (max_len is not None) and (path_len > max_len):
+        return []
+
+    # backtrack all shortest paths from v to u using parents
+    results = []
+
+    def backtrack(node, acc):
+        # acc currently holds nodes after `node` on the path (from node->...->v)
+        if len(results) >= max_paths:
+            return  # safety cap
+        if node == u:
+            results.append([u] + list(reversed(acc)))
+            return
+        for p in parents[node]:
+            backtrack(p, acc + [node])
+
+    backtrack(v, [])
+    return results
+
+
+# def bfs_shortest_path_excluding_edge(u, v, adjacency, max_len):
+#     """
+#     BFS shortest-path helper (returns path list [u,...,v]) with edge (u,v) removed temporarily
+#     """
+#     # adjacency is dict of sets; make local shallow copy of neighbors for traversal but do not mutate original
+#     # We'll treat the edge (u,v) as forbidden.
+#     q = deque([u])
+#     prev = {u: None}
+#     while q:
+#         cur = q.popleft()
+#         # early pruning
+#         if (
+#             prev[cur] is not None
+#             and (max_len is not None)
+#             and (len(prev) > max_len + 1)
+#         ):
+#             # rough bound; not precise but prevents infinite loops; actual checking done when reconstructing
+#             pass
+#         for nb in adjacency[cur]:
+#             if (cur == u and nb == v) or (cur == v and nb == u):
+#                 # skip the forbidden direct edge
+#                 continue
+#             if nb not in prev:
+#                 prev[nb] = cur
+#                 if nb == v:
+#                     # reconstruct path
+#                     path = [v]
+#                     while prev[path[-1]] is not None:
+#                         path.append(prev[path[-1]])
+#                     path.reverse()
+#                     return path  # [u,...,v]
+#                 q.append(nb)
+#     return None
